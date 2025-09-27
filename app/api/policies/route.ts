@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { Prisma } from '@prisma/client';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '../../../lib/prisma'; // ruta relativa desde app/api/policies
 
 export async function GET(req: Request) {
   const { userId } = auth();
@@ -10,24 +10,25 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const q = (searchParams.get('q') || '').trim();
 
-  // Importante: mode debe ser del tipo QueryMode, no string suelto
+  // EVITA el error: Prisma.QueryMode no puede ser un string suelto
   const mode: Prisma.QueryMode = 'insensitive';
 
-  const where: Prisma.PolicyWhereInput = q
-    ? {
-        userId,
-        OR: [
-          { nombre:   { contains: q, mode } },
-          { apellido: { contains: q, mode } },
-          { dniCuit:  { contains: q, mode } },
-          { patente:  { contains: q, mode } },
-        ],
-      }
-    : { userId };
+  const where: Prisma.PolicyWhereInput =
+    q.length > 0
+      ? {
+          userId,
+          OR: [
+            { nombre:   { contains: q, mode } },
+            { apellido: { contains: q, mode } },
+            { dniCuit:  { contains: q, mode } },
+            { patente:  { contains: q, mode } },
+          ],
+        }
+      : { userId };
 
   const rows = await prisma.policy.findMany({
     where,
-    orderBy: { updatedAt: 'desc' }, // asegúrate de tener updatedAt en tu modelo
+    orderBy: { updatedAt: 'desc' }, // si no tenés updatedAt, usa createdAt o quita orderBy
     take: 100,
   });
 
