@@ -1,36 +1,77 @@
 // app/api/policies/route.ts
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
+import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
-import { prisma } from '../../../lib/prisma';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+// GET /api/policies?q=...
 export async function GET(req: Request) {
-  const { userId } = auth();
-  if (!userId) return new NextResponse('Unauthorized', { status: 401 });
+  try {
+    const { userId } = auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-  const { searchParams } = new URL(req.url);
-  const q = (searchParams.get('q') || '').trim();
+    const { searchParams } = new URL(req.url);
+    const q = (searchParams.get('q') || '').trim();
 
-  // IMPORTANT: Prisma.QueryMode, no string suelto
-  const mode: Prisma.QueryMode = 'insensitive';
+    const mode: Prisma.QueryMode = 'insensitive';
 
-  const where: Prisma.PolicyWhereInput = q
-    ? {
-        userId,
-        OR: [
-          { nombre:   { contains: q, mode } },
-          { apellido: { contains: q, mode } },
-          { dniCuit:  { contains: q, mode } },
-          { patente:  { contains: q, mode } },
-        ],
-      }
-    : { userId };
+    // 🔎 Búsqueda por cliente/vehículo y también por empresa/numeroPoliza
+    const where: Prisma.PolicyWhereInput = q
+      ? {
+          userId,
+          OR: [
+            { nombre:       { contains: q, mode } },
+            { apellido:     { contains: q, mode } },
+            { dniCuit:      { contains: q, mode } },
+            { patente:      { contains: q, mode } },
+            { empresa:      { contains: q, mode } },        // <-- en tu schema
+            { numeroPoliza: { contains: q, mode } },        // <-- en tu schema
+          ],
+        }
+      : { userId };
 
-  const rows = await prisma.policy.findMany({
-    where,
-    orderBy: { updatedAt: 'desc' }, // cambia a { fechaVencimiento: 'asc' } si lo tenés en el modelo
-    take: 100,
-  });
+    const rows = await prisma.policy.findMany({
+      where,
+      orderBy: { updatedAt: 'desc' },
+      take: 100,
+    });
 
-  return NextResponse.json(rows);
+    return NextResponse.json(rows);
+  } catch {
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  }
 }
+
+// POST /api/policies
+export async function POST(req: Request) {
+  try {
+    const { userId } = auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await req.json();
+
+    const created = await prisma.policy.create({
+      data: { ...body, userId },
+    });
+
+    return NextResponse.json(created, { status: 201 });
+  } catch (e: any) {
+    if (e?.code === 'P2002') {
+      // Asume un índice único en (empresa, numeroPoliza) en tu schema
+      return NextResponse.json(
+        { error: 'Ya existe una póliza con esa empresa y número' },
+        { status: 409 },
+      );
+    }
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  }
+}
+
