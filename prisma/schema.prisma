@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Policy {
+  id               String   @id @default(cuid())
+  userId           String   // Clerk user id
+  nombre           String
+  apellido         String
+  dniCuit          String?
+  telefono         String?
+  email            String?
+  direccion        String?
+  marca            String?
+  modelo           String?
+  anio             Int?
+  patente          String?
+  color            String?
+  chasisMotor      String?
+  empresa          String?
+  numeroPoliza     String?
+  fechaInicio      DateTime?
+  fechaVencimiento DateTime?
+  monto            Float?
+  cobertura        String?
+  estado           String?   @default("Activa")
+  observaciones    String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([userId])
+  @@unique([userId, empresa, numeroPoliza])
+}
