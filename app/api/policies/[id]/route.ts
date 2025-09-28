@@ -32,9 +32,12 @@ export async function PUT(req: Request, { params }: Params) {
     const current = await prisma.policy.findFirst({ where: { id: params.id, userId } });
     if (!current) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    const data = await req.json();
+    const body = await req.json();
+    const data: any = { ...body };
     delete data.id;
     delete data.userId;
+    if (data.fechaInicio) data.fechaInicio = new Date(data.fechaInicio);
+    if (data.fechaVencimiento) data.fechaVencimiento = new Date(data.fechaVencimiento);
 
     const updated = await prisma.policy.update({
       where: { id: params.id },
@@ -44,10 +47,7 @@ export async function PUT(req: Request, { params }: Params) {
     return NextResponse.json(updated);
   } catch (e: any) {
     if (e?.code === 'P2002') {
-      return NextResponse.json(
-        { error: 'Duplicado (empresa + número)' },
-        { status: 409 }
-      );
+      return NextResponse.json({ error: 'Duplicado (empresa + número)' }, { status: 409 });
     }
     if (e?.code === 'P2025') {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -71,6 +71,3 @@ export async function DELETE(_req: Request, { params }: Params) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }
-
-
-

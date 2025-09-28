@@ -1,42 +1,72 @@
 // app/policies/page.tsx
-import { auth } from '@clerk/nextjs/server';
-import type { Prisma } from '@prisma/client';
-import { prisma } from '../../lib/prisma';
+import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 
-type PageProps = {
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+export default async function PoliciesPage({
+  searchParams,
+}: {
   searchParams?: { q?: string };
-};
-
-export default async function PoliciesPage({ searchParams }: PageProps) {
-  const { userId } = auth();
-  if (!userId) return null; // o redirigir a /sign-in
-
-  const q = (searchParams?.q ?? '').toString().trim();
+}) {
+  const q = (searchParams?.q || '').trim();
   const mode: Prisma.QueryMode = 'insensitive';
 
   const where: Prisma.PolicyWhereInput = q
     ? {
-        userId,
         OR: [
-          { nombre:   { contains: q, mode } },
-          { apellido: { contains: q, mode } },
-          { dniCuit:  { contains: q, mode } },
-          { patente:  { contains: q, mode } },
+          { nombre:       { contains: q, mode } },
+          { apellido:     { contains: q, mode } },
+          { dniCuit:      { contains: q, mode } },
+          { patente:      { contains: q, mode } },
+          { empresa:      { contains: q, mode } },
+          { numeroPoliza: { contains: q, mode } },
         ],
       }
-    : { userId };
+    : {};
 
   const data = await prisma.policy.findMany({
     where,
-    orderBy: { updatedAt: 'desc' }, // si preferís: { fechaVencimiento: 'asc' } si existe en tu modelo
+    orderBy: { fechaVencimiento: 'asc' },
     take: 50,
   });
 
   return (
     <main className="p-6">
       <h1 className="text-xl font-semibold mb-4">Pólizas</h1>
-      {/* Reemplazá esto por tu tabla UI cuando quieras */}
-      <pre className="text-sm bg-gray-100 p-4 rounded">{JSON.stringify(data, null, 2)}</pre>
+      <div className="text-sm text-gray-500 mb-2">
+        Total: {data.length}
+      </div>
+      <div className="overflow-auto border rounded">
+        <table className="min-w-[800px] text-sm">
+          <thead>
+            <tr className="bg-gray-50">
+              <th className="px-3 py-2 text-left">Cliente</th>
+              <th className="px-3 py-2 text-left">Empresa</th>
+              <th className="px-3 py-2 text-left">Nº Póliza</th>
+              <th className="px-3 py-2 text-left">Patente</th>
+              <th className="px-3 py-2 text-left">Vencimiento</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((p) => (
+              <tr key={p.id} className="border-t">
+                <td className="px-3 py-2">{p.apellido}, {p.nombre}</td>
+                <td className="px-3 py-2">{p.empresa || '-'}</td>
+                <td className="px-3 py-2">{p.numeroPoliza || '-'}</td>
+                <td className="px-3 py-2">{p.patente || '-'}</td>
+                <td className="px-3 py-2">
+                  {p.fechaVencimiento
+                    ? new Date(p.fechaVencimiento).toLocaleDateString()
+                    : '-'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </main>
   );
 }

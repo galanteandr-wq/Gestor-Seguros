@@ -1,4 +1,3 @@
-// app/api/policies/route.ts
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
@@ -12,16 +11,12 @@ export const revalidate = 0;
 export async function GET(req: Request) {
   try {
     const { userId } = auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { searchParams } = new URL(req.url);
     const q = (searchParams.get('q') || '').trim();
-
     const mode: Prisma.QueryMode = 'insensitive';
 
-    // 🔎 Búsqueda por cliente/vehículo y también por empresa/numeroPoliza
     const where: Prisma.PolicyWhereInput = q
       ? {
           userId,
@@ -30,8 +25,8 @@ export async function GET(req: Request) {
             { apellido:     { contains: q, mode } },
             { dniCuit:      { contains: q, mode } },
             { patente:      { contains: q, mode } },
-            { empresa:      { contains: q, mode } },        // <-- en tu schema
-            { numeroPoliza: { contains: q, mode } },        // <-- en tu schema
+            { empresa:      { contains: q, mode } },
+            { numeroPoliza: { contains: q, mode } },
           ],
         }
       : { userId };
@@ -52,20 +47,20 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const { userId } = auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
+    const data = {
+      ...body,
+      userId,
+      fechaInicio:      body.fechaInicio ? new Date(body.fechaInicio) : null,
+      fechaVencimiento: body.fechaVencimiento ? new Date(body.fechaVencimiento) : null,
+    };
 
-    const created = await prisma.policy.create({
-      data: { ...body, userId },
-    });
-
+    const created = await prisma.policy.create({ data });
     return NextResponse.json(created, { status: 201 });
   } catch (e: any) {
     if (e?.code === 'P2002') {
-      // Asume un índice único en (empresa, numeroPoliza) en tu schema
       return NextResponse.json(
         { error: 'Ya existe una póliza con esa empresa y número' },
         { status: 409 },
@@ -74,4 +69,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }
-
