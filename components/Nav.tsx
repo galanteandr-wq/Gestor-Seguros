@@ -1,18 +1,29 @@
-import Link from 'next/link'
-import { UserButton } from '@clerk/nextjs'
+// components/Nav.tsx
+'use client';
 
-export function Nav() {
+import Link from 'next/link';
+import { SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
+
+export default function Nav() {
   return (
-    <div className="w-full border-b bg-white">
-      <div className="container flex h-14 items-center justify-between">
-        <div className="font-semibold">Gestor de Seguros</div>
-        <div className="flex items-center gap-4 text-sm">
-          <Link href="/">Dashboard</Link>
-          <Link href="/policies">Pólizas</Link>
-          <Link href="/reports">Reportes</Link>
-          <UserButton afterSignOutUrl="/sign-in" />
+    <nav className="w-full border-b bg-white">
+      <div className="mx-auto max-w-5xl px-4 h-12 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link href="/" className="font-semibold">Gestor Seguros</Link>
+          <Link href="/policies" className="text-sm text-gray-600 hover:text-gray-900">Pólizas</Link>
+          <Link href="/policies/new" className="text-sm text-gray-600 hover:text-gray-900">Nueva</Link>
+        </div>
+        <div>
+          <SignedIn>
+            <UserButton />
+          </SignedIn>
+          <SignedOut>
+            <Link href="/sign-in" className="text-sm text-blue-600 hover:underline">
+              Iniciar sesión
+            </Link>
+          </SignedOut>
         </div>
       </div>
-    </div>
-  )
+    </nav>
+  );
 }
